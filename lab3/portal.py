@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-app=FastAPI(); log=logging.getLogger('portal')
+app=FastAPI(); log=logging.getLogger('uvicorn.error')
 MCP_URL=os.getenv('MCP_URL','http://127.0.0.1:18081/mcp')
 cloud_url=os.getenv('CLOUD_BASE_URL','https://api.llm7.io/v1')
 local_url=os.getenv('LOCAL_BASE_URL','http://127.0.0.1:11434/v1')
@@ -28,7 +28,7 @@ async def tool(name,args):
                 return [json.loads(x.text) for x in result.content if getattr(x,'text',None)]
 async def call_model(base,key,model,messages,timeout):
     async with httpx.AsyncClient(timeout=timeout) as c:
-        response=await c.post(base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,'max_tokens':160,'stream':False})
+        response=await c.post(base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,'max_tokens':160,'temperature':0,'stream':False})
         response.raise_for_status(); return response.json()['choices'][0]['message']['content']
 def failure_delay(ex):
     if isinstance(ex, ValueError): return 'invalid_cloud_response', 30
@@ -88,7 +88,7 @@ async def ask(q:Ask):
                 state['probing']=True; allowed=True; probe=True
     if allowed:
         try:
-            calls+=1; answer=await call_model(cloud_url,cloud_key,os.getenv('CLOUD_MODEL','default'),messages,8)
+            calls+=1; answer=await call_model(cloud_url,cloud_key,os.getenv('CLOUD_MODEL','glm-5.3-flash'),messages,8)
             if not valid_answer(answer,len(sources)): raise ValueError('invalid model citations')
             route='cloud'; reason='cloud_success'
             async with route_lock: state.update(until=0.0,probing=False)
@@ -112,6 +112,10 @@ async def ask(q:Ask):
             finally:
                 async with admission_lock: local_inflight-=1
         else: reason='local_overloaded'
+    if answer:
+        used={int(n) for n in re.findall(r'\[(\d+)\]',answer)}
+        labels=[f'[{i}] {sources[i-1]["status"]}' for i in sorted(used) if sources[i-1]['status'] in {'Архив','Черновик'}]
+        if labels: answer += '\n' + '; '.join(labels)
     result={'request_id':rid,'route':route,'reason':reason,'answer':answer,'sources':sources,'cards':cards}
     log.info(json.dumps({'request_id':rid,'route':route,'reason':reason,'latency_ms':round((time.monotonic()-started)*1000),'calls':calls}))
     return result
