@@ -1,0 +1,9 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.joblib
+*.sqlite
+lab3/corpus.json
+*.kubeconfig
+*.key
+.env

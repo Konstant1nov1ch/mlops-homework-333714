@@ -1,0 +1,51 @@
+{{- $digest := required "image.digest is required" .Values.image.digest -}}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" $digest) }}{{ fail "image.digest must be sha256 followed by 64 lowercase hex characters" }}{{ end -}}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9./_-]*$" .Values.image.repository) }}{{ fail "image.repository must not contain a tag or digest" }}{{ end -}}
+{{- if not (has .Values.rankingMode (list "normal" "reverse")) }}{{ fail "invalid rankingMode" }}{{ end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app: {{ .Release.Name }}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: retrieval
+          image: {{ .Values.image.repository }}@{{ $digest }}
+          env:
+            - {name: RANKING_MODE, value: {{ .Values.rankingMode | quote }}}
+            - {name: IMAGE_DIGEST, value: {{ $digest | quote }}}
+            - {name: ENVIRONMENT, value: {{ .Values.environment | quote }}}
+          ports:
+            - {name: http, containerPort: 8000}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+          livenessProbe:
+            httpGet: {path: /live, port: http}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 300m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  selector: {app: {{ .Release.Name }}}
+  ports:
+    - {port: 80, targetPort: http}

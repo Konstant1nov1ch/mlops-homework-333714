@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pinchuk-333714-iris-config
+data:
+  MODEL_VERSION: iris-v1
+  MODEL_PATH: /app/model.joblib
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pinchuk-333714-iris
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pinchuk-333714-iris}
+  template:
+    metadata:
+      labels: {app: pinchuk-333714-iris}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: iris
+          image: ghcr.io/konstant1nov1ch/iris-333714@sha256:441395e5790bc73a01ed0342120d5f01fb3e298f0507755b698000c950c1830b
+          ports: [{name: http, containerPort: 8000}]
+          envFrom: [{configMapRef: {name: pinchuk-333714-iris-config}}]
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+          livenessProbe:
+            httpGet: {path: /live, port: http}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 300m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pinchuk-333714-iris
+spec:
+  type: ClusterIP
+  selector: {app: pinchuk-333714-iris}
+  ports: [{name: http, port: 80, targetPort: http}]

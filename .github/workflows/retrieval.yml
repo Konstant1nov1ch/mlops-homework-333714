@@ -1,0 +1,91 @@
+name: retrieval release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy to the teaching namespace
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -r lab2/requirements.txt pytest httpx
+      - run: cd lab2 && python build_index.py && python -m pytest -q && python evaluate.py
+      - run: cd lab2; if python evaluate.py --mode reverse; then echo 'reverse must fail' >&2; exit 1; fi
+      - run: |
+          cd lab2
+          if helm template retrieval chart; then echo 'empty digest must fail' >&2; exit 1; fi
+          helm template retrieval chart --set-string image.digest=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null
+  build:
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions: {contents: read, packages: write}
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        id: image
+        with:
+          context: lab2
+          push: true
+          tags: ghcr.io/konstant1nov1ch/isu333714-retrieval:${{ github.sha }}
+  staging:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Deploy and semantic smoke test staging
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$KUBE_CONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
+          trap 'rm -f "$KUBECONFIG"; if [ -n "${pf:-}" ]; then kill "$pf" 2>/dev/null || true; fi' EXIT
+          cd lab2
+          helm upgrade --install pinchuk-search-staging chart -n itmo-student-06 --set-string image.digest="$DIGEST" --wait --timeout 5m
+          kubectl -n itmo-student-06 port-forward service/pinchuk-search-staging 18081:80 & pf=$!
+          for i in $(seq 1 30); do curl -fsS http://localhost:18081/ready && break; sleep 1; done
+          python smoke.py http://localhost:18081
+  production:
+    needs: [build, staging]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Promote the staging digest and smoke test
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$KUBE_CONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
+          trap 'rm -f "$KUBECONFIG"; if [ -n "${pf:-}" ]; then kill "$pf" 2>/dev/null || true; fi' EXIT
+          cd lab2
+          helm upgrade --install pinchuk-search-prod chart -n itmo-student-06 --set-string environment=production --set-string image.digest="$DIGEST" --wait --timeout 5m
+          kubectl -n itmo-student-06 port-forward service/pinchuk-search-prod 18082:80 & pf=$!
+          for i in $(seq 1 30); do curl -fsS http://localhost:18082/ready && break; sleep 1; done
+          python smoke.py http://localhost:18082

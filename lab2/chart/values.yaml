@@ -1,0 +1,5 @@
+image:
+  repository: ghcr.io/konstant1nov1ch/isu333714-retrieval
+  digest: ""
+rankingMode: normal
+environment: staging

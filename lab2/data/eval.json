@@ -1,0 +1,10 @@
+[
+ {"query":"как вернуть предыдущую стабильную ревизию после плохого релиза модели", "relevant":"rollback"},
+ {"query":"контейнер завершился OOMKilled не хватает оперативной памяти", "relevant":"memory"},
+ {"query":"pod не может загрузить образ ImagePullBackOff из registry", "relevant":"image"},
+ {"query":"медленные предсказания измерить задержку инференса p95", "relevant":"latency"},
+ {"query":"изменилось распределение признаков входных данных по сравнению с обучением", "relevant":"drift"},
+ {"query":"истек tls сертификат и нужно обновить цепочку ca", "relevant":"certificate"},
+ {"query":"переполнен диск том pvc и закончилось свободное место", "relevant":"storage"},
+ {"query":"приложение запущено но pod не готов readiness endpoint", "relevant":"readiness"}
+]
