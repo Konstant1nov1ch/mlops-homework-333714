@@ -41,8 +41,9 @@ jobs:
         id: image
         with:
           context: lab2
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           push: true
-          tags: ghcr.io/konstant1nov1ch/isu333714-retrieval:${{ github.sha }}
+          tags: ghcr.io/konstant1nov1ch/isu333714-retrieval-ci:${{ github.sha }}
   staging:
     if: github.event_name == 'workflow_dispatch' && inputs.deploy
     needs: build
