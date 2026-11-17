@@ -3,7 +3,7 @@ import sqlite3
 from starlette.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
 import kb
-mcp = FastMCP('line-kb', host='0.0.0.0', port=int(os.getenv('PORT', '18081')), stateless_http=True)
+mcp = FastMCP('line-kb', host=os.getenv('HOST', '127.0.0.1'), port=int(os.getenv('PORT', '18081')), stateless_http=True)
 @mcp.custom_route('/health', methods=['GET'])
 async def health(request):
     try:
