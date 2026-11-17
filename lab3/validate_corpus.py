@@ -3,9 +3,10 @@ import collections
 import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 
-path = Path(__file__).with_name('corpus.json')
+path = Path(os.getenv('CORPUS_PATH', str(Path(__file__).with_name('corpus.json'))))
 raw = path.read_bytes()
 corpus = json.loads(raw)
 docs = []

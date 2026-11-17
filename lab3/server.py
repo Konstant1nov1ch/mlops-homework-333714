@@ -7,7 +7,7 @@ mcp = FastMCP('line-kb', host='0.0.0.0', port=int(os.getenv('PORT', '18081')), s
 @mcp.custom_route('/health', methods=['GET'])
 async def health(request):
     try:
-        with sqlite3.connect(f'file:{kb.ROOT / "index.sqlite"}?mode=ro', uri=True) as db:
+        with sqlite3.connect(f'file:{kb.INDEX}?mode=ro', uri=True) as db:
             db.execute('SELECT digest FROM meta').fetchone()
         return JSONResponse({'status': 'ready'})
     except sqlite3.Error:

@@ -1,0 +1,36 @@
+name: knowledge portal
+on:
+  push:
+    branches: [main]
+    paths: [lab3/**, .github/workflows/knowledge.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -r lab3/requirements.txt pytest
+      - run: cd lab3 && python -m pytest -q tests
+  publish:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions: {contents: read, packages: write}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: lab3
+          push: true
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ghcr.io/konstant1nov1ch/isu333714-knowledge:${{ github.sha }}
+            ghcr.io/konstant1nov1ch/isu333714-knowledge:latest

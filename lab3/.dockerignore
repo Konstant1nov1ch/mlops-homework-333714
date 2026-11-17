@@ -1,0 +1,5 @@
+corpus.json
+*.sqlite
+*.sqlite-*
+__pycache__
+tests

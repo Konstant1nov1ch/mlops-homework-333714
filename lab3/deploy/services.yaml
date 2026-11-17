@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: pinchuk-kb-mcp}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: pinchuk-kb-mcp}}
+  template:
+    metadata: {labels: {app: pinchuk-kb-mcp}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: mcp
+          image: ghcr.io/konstant1nov1ch/isu333714-knowledge:latest
+          command: ["/bin/sh", "-c", "python index.py && exec python server.py"]
+          env:
+            - {name: CORPUS_PATH, value: /corpus/corpus.json}
+            - {name: INDEX_PATH, value: /index/index.sqlite}
+            - {name: PORT, value: "8000"}
+          ports: [{name: http, containerPort: 8000}]
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 15}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: corpus, mountPath: /corpus, readOnly: true}
+            - {name: index, mountPath: /index}
+      volumes:
+        - name: corpus
+          secret: {secretName: pinchuk-kb-corpus}
+        - name: index
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: pinchuk-kb-mcp}
+spec:
+  type: ClusterIP
+  selector: {app: pinchuk-kb-mcp}
+  ports: [{name: http, port: 8000, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: pinchuk-portal}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: pinchuk-portal}}
+  template:
+    metadata: {labels: {app: pinchuk-portal}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: portal
+          image: ghcr.io/konstant1nov1ch/isu333714-knowledge:latest
+          command: ["uvicorn", "portal:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+          env:
+            - {name: MCP_URL, value: "http://pinchuk-kb-mcp:8000/mcp"}
+            - {name: LOCAL_BASE_URL, value: "http://pinchuk-llm-local:11434/v1"}
+            - {name: LOCAL_MODEL, value: "deepseek-r1:1.5b"}
+            - name: LLM7_API_KEY
+              valueFrom: {secretKeyRef: {name: pinchuk-llm7, key: token, optional: true}}
+          ports: [{name: http, containerPort: 8000}]
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 15}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 300m, memory: 256Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: pinchuk-portal}
+spec:
+  type: ClusterIP
+  selector: {app: pinchuk-portal}
+  ports: [{name: http, port: 8000, targetPort: http}]

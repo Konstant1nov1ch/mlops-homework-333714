@@ -3,14 +3,16 @@ import hashlib, json, os, re, sqlite3, subprocess, sys, tempfile
 from pathlib import Path
 import snowballstemmer
 ROOT = Path(__file__).resolve().parent
+CORPUS = Path(os.getenv('CORPUS_PATH', str(ROOT / 'corpus.json')))
+INDEX = Path(os.getenv('INDEX_PATH', str(ROOT / 'index.sqlite')))
 STEM = snowballstemmer.stemmer('russian')
 def normalize(text):
     words = re.findall(r'[a-zа-я0-9]+', text.lower().replace('ё', 'е'))
     return ' '.join(STEM.stemWord(w) if re.search('[а-я]', w) else w for w in words)
 def build():
     subprocess.run([sys.executable, str(ROOT/'validate_corpus.py')], check=True)
-    raw = (ROOT/'corpus.json').read_bytes(); corpus = json.loads(raw)
-    fd, filename = tempfile.mkstemp(prefix='index-', suffix='.sqlite', dir=ROOT); os.close(fd)
+    raw = CORPUS.read_bytes(); corpus = json.loads(raw)
+    fd, filename = tempfile.mkstemp(prefix='index-', suffix='.sqlite', dir=INDEX.parent); os.close(fd)
     try:
         db = sqlite3.connect(filename)
         db.executescript('''CREATE TABLE meta (digest TEXT NOT NULL);
@@ -32,7 +34,7 @@ def build():
         db.commit()
         assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
         print('Indexed chunks:',db.execute('SELECT count(*) FROM chunks').fetchone()[0]); db.close()
-        os.replace(filename,ROOT/'index.sqlite')
+        os.replace(filename,INDEX)
     finally:
         if os.path.exists(filename): os.unlink(filename)
 if __name__ == '__main__': build()
