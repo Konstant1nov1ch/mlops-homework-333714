@@ -50,8 +50,11 @@ def failure_delay(ex):
         return 'rate_limit', max(1,delay)
     return 'cloud_error', 30
 def valid_answer(answer,n):
-    refs=re.findall(r'\[(\d+)\]',answer or '')
-    return bool(answer and refs) and all(1<=int(r)<=n for r in refs) and not re.search(r'https?://|<[^>]+>',answer)
+    if not answer or re.search(r'https?://|<[^>]+>',answer): return False
+    refs=re.findall(r'\[(\d+)\]',answer)
+    if not refs or not all(1<=int(r)<=n for r in refs): return False
+    sentences=[part for part in re.split(r'(?<=[.!?])\s+|\n+',answer) if re.search(r'[A-Za-zА-Яа-яЁё0-9]',part)]
+    return bool(sentences) and all(re.search(r'\[\d+\]',part) for part in sentences)
 @app.get('/health')
 async def health(): return {'status':'ready'}
 @app.get('/api/tree')
