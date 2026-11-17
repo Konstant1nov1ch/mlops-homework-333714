@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/konstant1nov1ch/isu333714-retrieval-ci
+  repository: docker.io/kostyapin/retrieval-333714
   digest: ""
 rankingMode: normal
 environment: staging

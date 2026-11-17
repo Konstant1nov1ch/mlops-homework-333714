@@ -7,6 +7,7 @@ CORPUS = Path(os.getenv('CORPUS_PATH', str(ROOT / 'corpus.json')))
 INDEX = Path(os.getenv('INDEX_PATH', str(ROOT / 'index.sqlite')))
 STEM = snowballstemmer.stemmer('russian')
 def normalize(text):
+    text = re.sub(r'(?<=\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))', '', text)
     words = re.findall(r'[a-zа-я0-9]+', text.lower().replace('ё', 'е'))
     return ' '.join(STEM.stemWord(w) if re.search('[а-я]', w) else w for w in words)
 def build():

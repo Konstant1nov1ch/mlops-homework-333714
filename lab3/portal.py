@@ -31,6 +31,9 @@ async def call_model(base,key,model,messages,timeout):
         response=await c.post(base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,'max_tokens':160,'stream':False})
         response.raise_for_status(); return response.json()['choices'][0]['message']['content']
 def failure_delay(ex):
+    if isinstance(ex, ValueError): return 'invalid_cloud_response', 30
+    if isinstance(ex, httpx.TimeoutException): return 'cloud_timeout', 30
+    if isinstance(ex, httpx.TransportError): return 'cloud_transport_error', 30
     if not isinstance(ex, httpx.HTTPStatusError): return 'cloud_error', 30
     response=ex.response
     try: code=str(response.json().get('error',{}).get('code',''))
