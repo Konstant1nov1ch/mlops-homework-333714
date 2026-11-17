@@ -8,7 +8,13 @@ from pathlib import Path
 
 path = Path(os.getenv('CORPUS_PATH', str(Path(__file__).with_name('corpus.json'))))
 raw = path.read_bytes()
-corpus = json.loads(raw)
+def unique_object(pairs):
+    data = {}
+    for key, value in pairs:
+        if key in data: raise ValueError(f'duplicate field: {key}')
+        data[key] = value
+    return data
+corpus = json.loads(raw, object_pairs_hook=unique_object)
 docs = []
 errors = []
 for section in corpus['sections']:

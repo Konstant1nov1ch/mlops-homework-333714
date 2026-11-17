@@ -1,5 +1,5 @@
 """Minimal portal backend. Model access is optional; search remains available."""
-import asyncio, html, json, logging, os, re, time, uuid
+import asyncio, datetime, email.utils, html, json, logging, os, re, time, uuid
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -30,6 +30,25 @@ async def call_model(base,key,model,messages,timeout):
     async with httpx.AsyncClient(timeout=timeout) as c:
         response=await c.post(base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,'max_tokens':160,'stream':False})
         response.raise_for_status(); return response.json()['choices'][0]['message']['content']
+def failure_delay(ex):
+    if not isinstance(ex, httpx.HTTPStatusError): return 'cloud_error', 30
+    response=ex.response
+    try: code=str(response.json().get('error',{}).get('code',''))
+    except (ValueError, AttributeError): code=''
+    quota_codes={x.strip() for x in os.getenv('CLOUD_QUOTA_CODES','').split(',') if x.strip()}
+    if code and code in quota_codes: return 'quota', 1800
+    if response.status_code in (401,403,404): return 'cloud_configuration', 1800
+    if response.status_code==429:
+        value=response.headers.get('Retry-After','60')
+        try: delay=float(value)
+        except ValueError:
+            try:
+                date=email.utils.parsedate_to_datetime(value)
+                if date.tzinfo is None: date=date.replace(tzinfo=datetime.timezone.utc)
+                delay=(date-datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+            except (ValueError,TypeError,OverflowError): delay=60
+        return 'rate_limit', max(1,delay)
+    return 'cloud_error', 30
 def valid_answer(answer,n):
     refs=re.findall(r'\[(\d+)\]',answer or '')
     return bool(answer and refs) and all(1<=int(r)<=n for r in refs) and not re.search(r'https?://|<[^>]+>',answer)
@@ -68,11 +87,7 @@ async def ask(q:Ask):
             route='cloud'; reason='cloud_success'
             async with route_lock: state.update(until=0.0,probing=False)
         except Exception as ex:
-            reason='cloud_error'; delay=30
-            if isinstance(ex,httpx.HTTPStatusError) and ex.response.status_code==429:
-                reason='rate_limit'
-                try: delay=max(1,int(ex.response.headers.get('Retry-After','60')))
-                except ValueError: delay=60
+            reason,delay=failure_delay(ex)
             async with route_lock: state.update(until=time.monotonic()+delay,probing=False)
     elif fragments: reason='private' if private else 'cloud_unavailable'
     if fragments and route!='cloud':
