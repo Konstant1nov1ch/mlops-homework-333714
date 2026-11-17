@@ -61,7 +61,7 @@ spec:
             - {name: MCP_URL, value: "http://pinchuk-kb-mcp:8000/mcp"}
             - {name: LOCAL_BASE_URL, value: "http://pinchuk-llm-local:11434/v1"}
             - {name: LOCAL_MODEL, value: "deepseek-r1:1.5b"}
-            - {name: CLOUD_MODEL, value: "glm-5.3-flash"}
+            - {name: CLOUD_MODEL, value: "gemma-3-27b"}
             - name: LLM7_API_KEY
               valueFrom: {secretKeyRef: {name: pinchuk-llm7, key: token, optional: true}}
           ports: [{name: http, containerPort: 8000}]

@@ -24,7 +24,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
         - name: prepare-model
-          image: ollama/ollama:0.40.16
+          image: docker.io/kostyapin/ollama-cpu-333714:latest
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -33,22 +33,26 @@ spec:
               trap 'kill "$server" 2>/dev/null || true' EXIT
               n=0
               until ollama list >/dev/null 2>&1; do n=$((n+1)); [ "$n" -lt 90 ]; sleep 2; done
-              ollama pull deepseek-r1:1.5b
+              echo "f3bdf9cf31dee4b57ae4e455a1cb0d01b5c2c1b50d72d3112141c195506c2840  /models/deepseek-r1-q4.gguf" | sha256sum -c -
+              if ! ollama show deepseek-r1:1.5b >/dev/null 2>&1; then
+                printf '%s\n' 'FROM /models/deepseek-r1-q4.gguf' 'PARAMETER num_ctx 2048' 'PARAMETER num_thread 2' > /tmp/Modelfile
+                ollama create deepseek-r1:1.5b -f /tmp/Modelfile
+              fi
           env:
             - {name: OLLAMA_HOST, value: "127.0.0.1:11434"}
-            - {name: OLLAMA_MODELS, value: /models}
+            - {name: OLLAMA_MODELS, value: /models/ollama}
           resources:
             requests: {cpu: 100m, memory: 128Mi}
             limits: {cpu: 500m, memory: 512Mi}
           volumeMounts: [{name: models, mountPath: /models}]
       containers:
         - name: ollama
-          image: ollama/ollama:0.40.16
+          image: docker.io/kostyapin/ollama-cpu-333714:latest
           args: ["serve"]
           ports: [{name: http, containerPort: 11434}]
           env:
             - {name: OLLAMA_HOST, value: "0.0.0.0:11434"}
-            - {name: OLLAMA_MODELS, value: /models}
+            - {name: OLLAMA_MODELS, value: /models/ollama}
             - {name: OLLAMA_NUM_PARALLEL, value: "1"}
             - {name: OLLAMA_CONTEXT_LENGTH, value: "2048"}
             - {name: CUDA_VISIBLE_DEVICES, value: "-1"}

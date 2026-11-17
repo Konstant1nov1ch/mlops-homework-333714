@@ -34,5 +34,6 @@ def search_docs(query, statuses=None, path=None, version=None, limit=5):
         if result:
             best=result[0]
             linked=set((get_doc(best['doc_id'],best['version']) or {}).get('links',[]))
-            result.sort(key=lambda item:(item['score']-(1.0 if f"{item['doc_id']}@{item['version']}" in linked else 0.0),item['doc_id'],item['version']))
+            section=best['path'].split(' / ')[0]
+            result.sort(key=lambda item:(item['score']-(1.0 if f"{item['doc_id']}@{item['version']}" in linked else 0.0)-(0.6 if item['path'].split(' / ')[0]==section else 0.0),item['doc_id'],item['version']))
         return result[:limit]
