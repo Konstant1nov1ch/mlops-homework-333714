@@ -84,3 +84,17 @@ def test_numeric_evidence_selects_relevant_money_amounts():
     answer=portal.add_numeric_evidence('После удвоения — 4 320 ₽, рост на 2 160 ₽ [1].','Сколько стоит удвоение?',fragments)
     assert 'По ставке 6 ₽ это 360 ГБ и 2 160 ₽' in answer
     assert '120 человек' not in answer
+
+
+def test_invalid_cloud_answer_is_not_returned_when_local_overloaded(monkeypatch):
+    cards=[{'doc_id':'A','version':'1','title':'x','status':'Действует','visibility':'cloud_ok','anchor':'s01','body':'fact'}]
+    async def fake_tool(name,args): return cards
+    async def fake_model(*args): return 'Выдумано [9]'
+    monkeypatch.setattr(portal,'tool',fake_tool)
+    monkeypatch.setattr(portal,'call_model',fake_model)
+    monkeypatch.setattr(portal,'cloud_key','test-only')
+    monkeypatch.setattr(portal,'local_inflight',2)
+    portal.state.update(until=0.0,probing=False)
+    with TestClient(portal.app) as client:
+        result=client.post('/api/ask',json={'query':'Что известно?'}).json()
+    assert result['route']=='search_only' and result['answer']==''

@@ -157,6 +157,7 @@ async def ask(q:Ask):
             route='cloud'; reason='cloud_success'
             async with route_lock: state.update(until=0.0,probing=False)
         except Exception as ex:
+            answer = ''
             reason,delay=failure_delay(ex)
             async with route_lock: state.update(until=time.monotonic()+delay,probing=False)
     elif fragments: reason='private' if private else 'cloud_unavailable'
