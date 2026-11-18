@@ -90,15 +90,23 @@ def numbers_grounded(answer, query, fragments):
     return True
 
 def add_numeric_evidence(answer, query, fragments):
-    if not re.search(r'сколько|цифр|стоим|порог|предел|удво',query,re.I): return answer
-    present=numeric_literals(answer); excerpts=[]
+    if not re.search(r'цифр|свер|удво|измен|сколько стоит',query,re.I): return answer
+    money_question=bool(re.search(r'стоим|стоит|рубл|расход',query,re.I))
+    def amounts(text):
+        text=re.sub(r'(?<=\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))','',text or '')
+        return {v.replace(',', '.') for v in re.findall(r'(\d+(?:[.,]\d+)?)\s*(?:₽|руб)',text,re.I)}
+    present=amounts(answer) if money_question else numeric_literals(answer); excerpts=[]
+    max_excerpts=1 if money_question else 2
+    cited={int(n) for n in re.findall(r'\[(\d+)\]',answer)}
+    cited_docs={(fragments[i-1]['doc_id'],fragments[i-1]['version']) for i in cited}
     for i,frag in enumerate(fragments,1):
+        if (frag['doc_id'],frag['version']) not in cited_docs: continue
         for sentence in re.split(r'(?<=[.!?])\s+',frag['body'][:900]):
-            numbers=numeric_literals(sentence)
-            if len(numbers)>=2 and numbers-present:
+            numbers=amounts(sentence) if money_question else numeric_literals(sentence)
+            if len(numbers)>=(1 if money_question else 2) and numbers-present:
                 excerpts.append(sentence.strip()+f' [{i}]'); present|=numbers
-                if len(excerpts)==2: break
-        if len(excerpts)==2: break
+                if len(excerpts)==max_excerpts: break
+        if len(excerpts)==max_excerpts: break
     return answer + ('\nДанные из источников: ' + ' '.join(excerpts) if excerpts else '')
 @app.get('/health')
 async def health(): return {'status':'ready'}

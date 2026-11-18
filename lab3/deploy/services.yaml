@@ -3,6 +3,7 @@ kind: Deployment
 metadata: {name: pinchuk-kb-mcp}
 spec:
   replicas: 1
+  strategy: {type: Recreate}
   selector: {matchLabels: {app: pinchuk-kb-mcp}}
   template:
     metadata: {labels: {app: pinchuk-kb-mcp}}
@@ -47,6 +48,7 @@ kind: Deployment
 metadata: {name: pinchuk-portal}
 spec:
   replicas: 1
+  strategy: {type: Recreate}
   selector: {matchLabels: {app: pinchuk-portal}}
   template:
     metadata: {labels: {app: pinchuk-portal}}

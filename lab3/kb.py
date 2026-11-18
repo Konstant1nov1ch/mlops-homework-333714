@@ -21,6 +21,8 @@ def search_docs(query, statuses=None, path=None, version=None, limit=5):
     stop = set(normalize('ли откуда взялось число запущены кто сколько какой какая как почему что это для при из на по и в с до за или').split())
     terms=[t for t in dict.fromkeys(normalize(query).split()) if t not in stop]
     if not terms: return []
+    exact_ids={x.upper() for x in re.findall(r'\b[A-Z]-\d{2}\b',query,re.I)}
+    exact_codes={x.lower() for x in re.findall(r'\b[a-z][a-z0-9]*_[a-z0-9_]+\b',query,re.I)}
     expression=' OR '.join('"'+t.replace('"','""')+'"' for t in terms)
     filters=['search MATCH ?', 'c.status IN ('+','.join('?' for _ in statuses)+')']; args=[expression,*statuses]
     if path: filters.append('c.path = ?'); args.append(path)
@@ -37,5 +39,5 @@ def search_docs(query, statuses=None, path=None, version=None, limit=5):
             best=result[0]
             linked=set((get_doc(best['doc_id'],best['version']) or {}).get('links',[]))
             section=best['path'].split(' / ')[0]
-            result.sort(key=lambda item:(item['score']-(1.0 if f"{item['doc_id']}@{item['version']}" in linked else 0.0)-(0.6 if item['path'].split(' / ')[0]==section else 0.0),item['doc_id'],item['version']))
+            result.sort(key=lambda item:(item['score']-(100.0 if item['doc_id'].upper() in exact_ids else 0.0)-(50.0 if any(code in item['body'].lower() for code in exact_codes) else 0.0)-(1.0 if f"{item['doc_id']}@{item['version']}" in linked else 0.0)-(0.6 if item['path'].split(' / ')[0]==section else 0.0),item['doc_id'],item['version']))
         return result[:limit]

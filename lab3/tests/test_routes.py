@@ -68,7 +68,7 @@ def test_grouped_citations_expand_and_unknowns_fail():
     assert not portal.valid_answer(portal.normalize_citations('Факт [1, 9].'),3)
 
 def test_numeric_claims_must_be_in_question_or_cited_fragment():
-    fragments=[{'body':'Активация: 86 из 120, или 71,7%. Удержание: 39 из 86, или 45,3%.'}]
+    fragments=[{'doc_id':'B-06','version':'1.0','body':'Активация: 86 из 120, или 71,7%. Удержание: 39 из 86, или 45,3%.'}]
     assert portal.numbers_grounded('Активация 71,7% [1].','Какова активация?',fragments)
     assert not portal.numbers_grounded('Активация 75% [1].','Какова активация?',fragments)
     answer=portal.add_numeric_evidence('Активация 71,7% [1].','Сверь цифры',fragments)
@@ -78,3 +78,9 @@ def test_contradictory_doubling_claim_is_discarded():
     answer='Расход после удвоения 4 320 рублей [1]. Исходный объём 720 ГБ, новый — 720 ГБ [1].'
     result=portal.discard_contradictory_comparisons(answer,'Сколько стоит удвоение скачиваний?')
     assert '4 320' in result and '720' not in result
+
+def test_numeric_evidence_selects_relevant_money_amounts():
+    fragments=[{'doc_id':'B-05','version':'1.2','body':'После удвоения трафик составит 720 ГБ и 4 320 ₽. Разница — 2 160 ₽.'},{'doc_id':'B-05','version':'1.2','body':'В расчёте 120 человек и 3 ГБ на каждого. По ставке 6 ₽ это 360 ГБ и 2 160 ₽.'}]
+    answer=portal.add_numeric_evidence('После удвоения — 4 320 ₽, рост на 2 160 ₽ [1].','Сколько стоит удвоение?',fragments)
+    assert 'По ставке 6 ₽ это 360 ГБ и 2 160 ₽' in answer
+    assert '120 человек' not in answer
