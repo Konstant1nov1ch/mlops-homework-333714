@@ -29,7 +29,7 @@ async def tool(name,args):
                 return [json.loads(x.text) for x in result.content if getattr(x,'text',None)]
 async def call_model(base,key,model,messages,timeout):
     async with httpx.AsyncClient(timeout=timeout) as c:
-        response=await c.post(base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,'max_tokens':220,'temperature':0,'stream':False})
+        response=await c.post(base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,'max_tokens':512 if base==local_url else 220,'temperature':0,'stream':False})
         response.raise_for_status(); return response.json()['choices'][0]['message']['content']
 def failure_delay(ex):
     if isinstance(ex, ValueError): return 'invalid_cloud_response', 30
