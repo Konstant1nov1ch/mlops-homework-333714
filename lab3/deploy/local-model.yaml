@@ -58,7 +58,7 @@ spec:
             - {name: CUDA_VISIBLE_DEVICES, value: "-1"}
           resources:
             requests: {cpu: 750m, memory: 1536Mi}
-            limits: {cpu: 1800m, memory: 2304Mi}
+            limits: {cpu: "1", memory: 1700Mi}
           startupProbe:
             httpGet: {path: /api/tags, port: http}
             periodSeconds: 5

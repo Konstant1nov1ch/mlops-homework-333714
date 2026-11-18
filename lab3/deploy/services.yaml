@@ -11,7 +11,7 @@ spec:
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: mcp
-          image: docker.io/kostyapin/knowledge-333714:latest
+          image: docker.io/kostyapin/knowledge-333714@sha256:be0541c7d740f62193520bde221ef6e69e6937adc5025e6573937dd559293b96
           command: ["/bin/sh", "-c", "python index.py && exec python server.py"]
           env:
             - {name: CORPUS_PATH, value: /corpus/corpus.json}
@@ -55,7 +55,7 @@ spec:
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: portal
-          image: docker.io/kostyapin/knowledge-333714:latest
+          image: docker.io/kostyapin/knowledge-333714@sha256:be0541c7d740f62193520bde221ef6e69e6937adc5025e6573937dd559293b96
           command: ["uvicorn", "portal:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
           env:
             - {name: MCP_URL, value: "http://pinchuk-kb-mcp:8000/mcp"}
