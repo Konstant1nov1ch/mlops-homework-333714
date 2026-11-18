@@ -12,7 +12,7 @@ spec:
       securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
       containers:
         - name: relay
-          image: docker.io/kostyapin/knowledge-333714:latest
+          image: docker.io/kostyapin/knowledge-333714@sha256:25617d9c6814f9eb84a484713f182c1237f6429581da66683a335f4a3253e826
           command: ["uvicorn", "relay:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
           env:
             - name: RELAY_WORKER_KEY
