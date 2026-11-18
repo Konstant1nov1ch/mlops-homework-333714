@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: pinchuk-cloud-relay}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: pinchuk-cloud-relay}}
+  template:
+    metadata: {labels: {app: pinchuk-cloud-relay}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: relay
+          image: docker.io/kostyapin/knowledge-333714:latest
+          command: ["uvicorn", "relay:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+          env:
+            - name: RELAY_WORKER_KEY
+              valueFrom: {secretKeyRef: {name: pinchuk-relay, key: key}}
+            - name: LLM7_API_KEY
+              valueFrom: {secretKeyRef: {name: pinchuk-llm7, key: token}}
+          ports: [{name: http, containerPort: 8000}]
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 15}
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: pinchuk-cloud-relay}
+spec:
+  type: ClusterIP
+  selector: {app: pinchuk-cloud-relay}
+  ports: [{name: http, port: 8000, targetPort: http}]
