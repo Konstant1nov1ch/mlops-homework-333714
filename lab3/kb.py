@@ -1,6 +1,7 @@
 import json, re, sqlite3
 from pathlib import Path
 from index import CORPUS, INDEX, normalize
+from safety import unsafe_fragment
 
 def list_sections():
     data=json.loads(CORPUS.read_text())
@@ -29,6 +30,7 @@ def search_docs(query, statuses=None, path=None, version=None, limit=5):
         rows=db.execute('SELECT c.*, bm25(search) AS score FROM search JOIN chunks c ON c.id=search.rowid WHERE '+' AND '.join(filters)+' ORDER BY score LIMIT 100',args).fetchall()
         result=[]; seen=set()
         for row in rows:
+            if unsafe_fragment(row['body']): continue
             key=(row['doc_id'],row['version'])
             if key not in seen: result.append(dict(row)); seen.add(key)
         if result:

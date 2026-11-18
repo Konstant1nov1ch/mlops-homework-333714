@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
+from safety import unsafe_fragment
 
 app=FastAPI(); log=logging.getLogger('uvicorn.error')
 MCP_URL=os.getenv('MCP_URL','http://127.0.0.1:18081/mcp')
@@ -53,7 +54,7 @@ def failure_delay(ex):
         return 'rate_limit', max(1,delay)
     return 'cloud_error', 30
 def valid_answer(answer,n):
-    if not answer or re.search(r'https?://|<[^>]+>',answer): return False
+    if not answer or unsafe_fragment(answer) or re.search(r'https?://|<[^>]+>',answer): return False
     refs=re.findall(r'\[(\d+)\]',answer)
     if not refs or not all(1<=int(r)<=n for r in refs): return False
     sentences=[part for part in re.split(r'(?<=[.!?])\s+|\n+',answer) if re.search(r'[A-Za-zА-Яа-яЁё0-9]',part)]
@@ -76,17 +77,18 @@ async def ask(q:Ask):
     # A retrieved local-only record forces the whole query to remain local.
     private=q.private or any(c.get('visibility')!='cloud_ok' for c in cards)
     # Exclude suspicious instruction-like excerpts rather than forwarding them to a model.
-    fragments=[c for c in cards if not re.search(r'игнорируй|ignore previous|system prompt|выполни команд',c.get('body',''),re.I)][:4]
+    fragments=[c for c in cards if not unsafe_fragment(c.get('body',''))][:2]
     # A neighbouring section may contain the figures behind a summary; keep its own anchor.
     if fragments:
         try:
             top=fragments[0]; docs=await tool('get_doc',{'doc_id':top['doc_id'],'version':top['version']})
             sections=docs[0]['sections']; position=next(i for i,x in enumerate(sections) if x['anchor']==top['anchor'])
-            if position>0:
-                previous=sections[position-1]; body=' '.join(previous['body'])
-                if not re.search(r'игнорируй|ignore previous|system prompt|выполни команд',body,re.I):
-                    extra=dict(top,anchor=previous['anchor'],section_title=previous['title'],body=body[:1400])
-                    fragments=[top,extra]+fragments[1:3]
+            adjacent=position-1 if position>0 else position+1
+            if adjacent < len(sections):
+                neighbour=sections[adjacent]; body=' '.join(neighbour['body'])
+                if not unsafe_fragment(body):
+                    extra=dict(top,anchor=neighbour['anchor'],section_title=neighbour['title'],body=body[:1400])
+                    fragments=[top,extra]+fragments[1:2]
         except (ValueError,KeyError,IndexError,StopIteration,TimeoutError):
             pass
     sources=[{'id':c['doc_id'],'version':c['version'],'title':c['title'],'status':c['status'],'anchor':c['anchor'],'url':f"/docs/{c['doc_id']}/{c['version']}#{c['anchor']}"} for c in fragments]
