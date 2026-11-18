@@ -73,3 +73,8 @@ def test_numeric_claims_must_be_in_question_or_cited_fragment():
     assert not portal.numbers_grounded('Активация 75% [1].','Какова активация?',fragments)
     answer=portal.add_numeric_evidence('Активация 71,7% [1].','Сверь цифры',fragments)
     assert '86 из 120' in answer and '39 из 86' in answer
+
+def test_contradictory_doubling_claim_is_discarded():
+    answer='Расход после удвоения 4 320 рублей [1]. Исходный объём 720 ГБ, новый — 720 ГБ [1].'
+    result=portal.discard_contradictory_comparisons(answer,'Сколько стоит удвоение скачиваний?')
+    assert '4 320' in result and '720' not in result

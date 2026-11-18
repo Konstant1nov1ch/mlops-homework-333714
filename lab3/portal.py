@@ -68,6 +68,17 @@ def numeric_literals(text):
     text=re.sub(r'(?<=\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))','',text or '')
     return {x.replace(',', '.') for x in re.findall(r'(?<![\w])\d+(?:[.,]\d+)?',text)}
 
+def discard_contradictory_comparisons(answer, query):
+    if not re.search(r'удво|вдвое|увелич|выраст',query,re.I): return answer
+    kept=[]
+    for part in re.split(r'(?<=[.!?])\s+',answer):
+        if re.search(r'исходн|первоначальн',part,re.I) and re.search(r'нов|после|стало',part,re.I):
+            clean=re.sub(r'\[\d+\]','',part)
+            clean=re.sub(r'(?<=\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))','',clean)
+            values=[x.replace(',','.') for x in re.findall(r'(?<![\w])\d+(?:[.,]\d+)?',clean)]
+            if len(values)>=2 and values[0]==values[1]: continue
+        kept.append(part)
+    return ' '.join(kept)
 def numbers_grounded(answer, query, fragments):
     for sentence in re.split(r'(?<=[.!?])\s+|\n+', answer):
         refs=[int(x) for x in re.findall(r'\[(\d+)\]',sentence)]
@@ -133,7 +144,7 @@ async def ask(q:Ask):
     if allowed:
         try:
             calls+=1; answer=await call_model(cloud_url,cloud_key,os.getenv('CLOUD_MODEL','gemma-3-27b'),messages,float(os.getenv('CLOUD_TIMEOUT','25')))
-            answer=normalize_citations(answer)
+            answer=discard_contradictory_comparisons(normalize_citations(answer),q.query)
             if not valid_answer(answer,len(sources)) or not numbers_grounded(answer,q.query,fragments): raise ValueError('invalid model citations or numbers')
             route='cloud'; reason='cloud_success'
             async with route_lock: state.update(until=0.0,probing=False)
@@ -151,7 +162,7 @@ async def ask(q:Ask):
                 async with asyncio.timeout(75):
                     async with local_slots:
                         calls+=1; candidate=await call_model(local_url,'local',os.getenv('LOCAL_MODEL','deepseek-r1:1.5b'),messages,70)
-                candidate=normalize_citations(candidate)
+                candidate=discard_contradictory_comparisons(normalize_citations(candidate),q.query)
                 if valid_answer(candidate,len(sources)) and numbers_grounded(candidate,q.query,fragments): answer=candidate; route='local'
                 else: answer=''
             except Exception: answer=''
