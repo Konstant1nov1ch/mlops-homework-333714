@@ -66,3 +66,10 @@ def test_grouped_citations_expand_and_unknowns_fail():
     assert normalized == 'Предел 5000 [1][3].'
     assert portal.valid_answer(normalized,3)
     assert not portal.valid_answer(portal.normalize_citations('Факт [1, 9].'),3)
+
+def test_numeric_claims_must_be_in_question_or_cited_fragment():
+    fragments=[{'body':'Активация: 86 из 120, или 71,7%. Удержание: 39 из 86, или 45,3%.'}]
+    assert portal.numbers_grounded('Активация 71,7% [1].','Какова активация?',fragments)
+    assert not portal.numbers_grounded('Активация 75% [1].','Какова активация?',fragments)
+    answer=portal.add_numeric_evidence('Активация 71,7% [1].','Сверь цифры',fragments)
+    assert '86 из 120' in answer and '39 из 86' in answer
