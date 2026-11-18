@@ -53,6 +53,11 @@ def failure_delay(ex):
             except (ValueError,TypeError,OverflowError): delay=60
         return 'rate_limit', max(1,delay)
     return 'cloud_error', 30
+def normalize_citations(answer):
+    def expand(match):
+        return ''.join('['+n+']' for n in re.findall(r'\d+', match.group(1)))
+    answer=re.sub(r'\[(\d+(?:\s*[,;]\s*\d+)+)\]', expand, answer or '')
+    return re.sub(r'([.!?])[ \t]*((?:\[\d+\])+)', r' \2\1', answer)
 def valid_answer(answer,n):
     if not answer or unsafe_fragment(answer) or re.search(r'https?://|<[^>]+>',answer): return False
     refs=re.findall(r'\[(\d+)\]',answer)
@@ -103,6 +108,7 @@ async def ask(q:Ask):
     if allowed:
         try:
             calls+=1; answer=await call_model(cloud_url,cloud_key,os.getenv('CLOUD_MODEL','gemma-3-27b'),messages,float(os.getenv('CLOUD_TIMEOUT','25')))
+            answer=normalize_citations(answer)
             if not valid_answer(answer,len(sources)): raise ValueError('invalid model citations')
             route='cloud'; reason='cloud_success'
             async with route_lock: state.update(until=0.0,probing=False)
@@ -120,6 +126,7 @@ async def ask(q:Ask):
                 async with asyncio.timeout(75):
                     async with local_slots:
                         calls+=1; candidate=await call_model(local_url,'local',os.getenv('LOCAL_MODEL','deepseek-r1:1.5b'),messages,70)
+                candidate=normalize_citations(candidate)
                 if valid_answer(candidate,len(sources)): answer=candidate; route='local'
                 else: answer=''
             except Exception: answer=''

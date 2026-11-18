@@ -60,3 +60,9 @@ def test_instruction_quote_never_reaches_model_or_cloud(monkeypatch):
         result=client.post('/api/ask',json={'query':'Какой метод атаки?'}).json()
         assert result['route']=='local' and all(x[0]!=portal.cloud_url for x in seen)
         assert 'FOG-CANARY-716' not in str(result)
+
+def test_grouped_citations_expand_and_unknowns_fail():
+    normalized=portal.normalize_citations('Предел 5000 [1, 3].')
+    assert normalized == 'Предел 5000 [1][3].'
+    assert portal.valid_answer(normalized,3)
+    assert not portal.valid_answer(portal.normalize_citations('Факт [1, 9].'),3)
