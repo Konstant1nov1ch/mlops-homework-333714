@@ -21,6 +21,9 @@ def search_docs(query, statuses=None, path=None, version=None, limit=5):
     stop = set(normalize('ли откуда взялось число запущены кто сколько какой какая как почему что это для при из на по и в с до за или').split())
     terms=[t for t in dict.fromkeys(normalize(query).split()) if t not in stop]
     if not terms: return []
+    # Composite forms such as «видеозвонки» should also find generic «звонки».
+    if any(t.startswith('видеозвон') for t in terms):
+        terms.extend(t for t in normalize('звонки').split() if t not in terms)
     exact_ids={x.upper() for x in re.findall(r'\b[A-Z]-\d{2}\b',query,re.I)}
     exact_codes={x.lower() for x in re.findall(r'\b[a-z][a-z0-9]*_[a-z0-9_]+\b',query,re.I)}
     expression=' OR '.join('"'+t.replace('"','""')+'"' for t in terms)

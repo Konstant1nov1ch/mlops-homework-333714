@@ -11,7 +11,7 @@ cases=[
 passed=0
 for key,q,expected,statuses in cases:
  found=[r['doc_id']+'@'+r['version'] for r in search_docs(q,statuses)]
- ok=bool(set(found)&set(expected)) if key=='К08' else set(expected)<=set(found)
+ ok=set(expected)<=set(found)
  passed+=ok
  print(key,'PASS' if ok else 'FAIL', 'found:',', '.join(found),'expected:',', '.join(expected))
 print(f'Passed: {passed}/{len(cases)}')
