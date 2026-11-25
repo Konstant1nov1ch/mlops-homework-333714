@@ -18,8 +18,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - run: pip install -r lab2/requirements.txt pytest httpx
-      - run: cd lab2 && python build_index.py && python -m pytest -q && python evaluate.py
-      - run: cd lab2; if python evaluate.py --mode reverse; then echo 'reverse must fail' >&2; exit 1; fi
+      - run: cd lab2 && python scripts/build_index.py && python -m pytest -q && python scripts/evaluate.py
+      - run: cd lab2; if python scripts/evaluate.py --ranking-mode reverse; then echo 'reverse must fail' >&2; exit 1; fi
       - run: |
           cd lab2
           if helm template retrieval chart; then echo 'empty digest must fail' >&2; exit 1; fi
@@ -65,7 +65,7 @@ jobs:
           cd lab2
           helm upgrade --install pinchuk-search-staging chart -n itmo-student-06 --set-string image.digest="$DIGEST" --wait --timeout 5m
           kubectl -n itmo-student-06 port-forward service/pinchuk-search-staging 18081:80 & pf=$!
-          for i in $(seq 1 30); do curl -fsS http://localhost:18081/ready && break; sleep 1; done
+          for i in $(seq 1 30); do curl -fsS http://localhost:18081/readyz && break; sleep 1; done
           python smoke.py http://localhost:18081
   production:
     needs: [build, staging]
@@ -88,18 +88,18 @@ jobs:
           cd lab2
           helm upgrade --install pinchuk-search-prod chart -n itmo-student-06 --set-string environment=production --set-string image.digest="$DIGEST" --wait --timeout 5m
           kubectl -n itmo-student-06 port-forward service/pinchuk-search-prod 18082:80 & pf=$!
-          for i in $(seq 1 30); do curl -fsS http://localhost:18082/ready && break; sleep 1; done
+          for i in $(seq 1 30); do curl -fsS http://localhost:18082/readyz && break; sleep 1; done
           python smoke.py http://localhost:18082
           IMAGE_DIGEST="$DIGEST" bash demo_rollback.sh pinchuk-search-prod
           kill "$pf" 2>/dev/null || true
           wait "$pf" 2>/dev/null || true
           kubectl -n itmo-student-06 port-forward service/pinchuk-search-prod 18082:80 & pf=$!
-          for i in $(seq 1 30); do curl -fsS http://localhost:18082/ready && break; sleep 1; done
+          for i in $(seq 1 30); do curl -fsS http://localhost:18082/readyz && break; sleep 1; done
           for release in pinchuk-search-staging pinchuk-search-prod; do
             actual=$(kubectl -n itmo-student-06 get deployment "$release" -o jsonpath='{.spec.template.spec.containers[0].image}')
             test "$actual" = "docker.io/kostyapin/retrieval-333714@$DIGEST"
           done
           kubectl -n itmo-student-06 port-forward service/pinchuk-search-staging 18084:80 & stage_pf=$!
-          for i in $(seq 1 30); do curl -fsS http://localhost:18084/ready && break; sleep 1; done
+          for i in $(seq 1 30); do curl -fsS http://localhost:18084/readyz && break; sleep 1; done
           IMAGE_DIGEST="$DIGEST" python compare_release.py http://localhost:18084 http://localhost:18082
           kill "$stage_pf" || true

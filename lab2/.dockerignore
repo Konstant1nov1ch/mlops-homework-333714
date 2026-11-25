@@ -1,3 +1,6 @@
 __pycache__
 index.joblib
 .git
+
+artifacts/
+.pytest_cache/

@@ -13,7 +13,7 @@ trap cleanup EXIT
 start_forward() {
   if [ -n "${forward_pid:-}" ]; then kill "$forward_pid" 2>/dev/null || true; wait "$forward_pid" 2>/dev/null || true; fi
   kubectl -n "$namespace" port-forward "service/$release" 18083:80 >/dev/null 2>&1 & forward_pid=$!
-  for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:18083/ready >/dev/null 2>&1; then return 0; fi; sleep 1; done
+  for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:18083/readyz >/dev/null 2>&1; then return 0; fi; sleep 1; done
   echo 'port-forward failed' >&2; return 1
 }
 start_forward
@@ -21,7 +21,7 @@ python3 smoke.py http://127.0.0.1:18083
 rollback_needed=1
 helm upgrade "$release" chart -n "$namespace" --reuse-values --set rankingMode=reverse --wait --timeout 5m
 start_forward
-curl -fsS http://127.0.0.1:18083/ready >/dev/null
+curl -fsS http://127.0.0.1:18083/readyz >/dev/null
 if python3 smoke.py http://127.0.0.1:18083; then echo 'reverse unexpectedly passed semantic smoke' >&2; exit 1; fi
 helm rollback "$release" "$old_revision" -n "$namespace" --wait --timeout 5m
 rollback_needed=0
