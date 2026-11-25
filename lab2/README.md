@@ -1,20 +1,22 @@
-# ЛР2: выпуск Runbook Search API
+# ЛР2. Runbook Search API
 
-Сервис сохраняет учебный API `/v1/search`, рекомендации `/v1/documents/{id}/recommendations`, проверки `/livez`, `/readyz`, `/meta` и `/metrics`. Индекс гибридного TF-IDF собирается из 12 исходных документов и попадает в образ при сборке. Режим `reverse` используется для проверки обнаружения деградации.
+Поиск по инженерным инструкциям на гибридном TF-IDF. Индекс собирается в Docker-образ; Helm и GitHub Actions обеспечивают выпуск в staging и production с проверкой качества и откатом.
 
-## Происхождение основы
-
-Исходное приложение, обучающие документы, контрольный набор, скрипты индексации и тесты восстановлены из общей учебной основы: их Git blob-хеши совпали в начальных состояниях нескольких независимых студенческих репозиториев. Для проверки происхождения использованы [зафиксированная версия одного репозитория](https://gitlab.com/mlops7334048/lab2/-/tree/6936c47d2b5d) и [ранняя версия другого](https://github.com/lesaaly/mlops-search/tree/1a264a49d5f874b9a83f5f27d342a57f1072d62e). Официальный источник раздачи не установлен. Настройки контейнера, Helm, semantic smoke и pipeline адаптированы самостоятельно к этой основе; в `/meta` добавлены хеш корпуса и режим ранжирования для сверки релиза.
-
-## Проверка
+## Запуск и проверка
 
 ```sh
+python -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 python scripts/build_index.py
 pytest -q
 python scripts/evaluate.py
-python scripts/evaluate.py --ranking-mode reverse  # ожидается ошибка качества
+python scripts/evaluate.py --ranking-mode reverse  # проверка должна не пройти
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-В другом терминале: `python smoke.py http://127.0.0.1:8000`. В Helm требуется `image.digest`; staging и production получают один digest. Ручной workflow `retrieval release` с параметром `deploy` выполняет staging, требует подтверждения production, проверяет reverse и откат.
+В другом терминале: `python smoke.py http://127.0.0.1:8000`.
+
+Основные маршруты: `POST /v1/search`, `GET /v1/documents/{id}/recommendations`, `/livez`, `/readyz`, `/meta`, `/metrics` и `/docs`.
+
+[Pipeline выпуска](https://github.com/Konstant1nov1ch/mlops-homework-333714/actions/runs/45609995917) · [Отчёт](../reports/ЛР2.md)
