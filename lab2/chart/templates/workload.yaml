@@ -25,6 +25,7 @@ spec:
           env:
             - {name: RANKING_MODE, value: {{ .Values.rankingMode | quote }}}
             - {name: IMAGE_DIGEST, value: {{ $digest | quote }}}
+            - {name: BUILD_REVISION, value: {{ .Values.buildRevision | quote }}}
             - {name: ENVIRONMENT, value: {{ .Values.environment | quote }}}
           ports:
             - {name: http, containerPort: 8000}

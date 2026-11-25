@@ -3,3 +3,4 @@ image:
   digest: ""
 rankingMode: normal
 environment: staging
+buildRevision: unknown
