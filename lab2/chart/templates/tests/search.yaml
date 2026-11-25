@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: verify-search
+          image: {{ .Values.image.repository }}@{{ .Values.image.digest }}
+          command: ["python", "-c"]
+          args:
+            - |
+              import json, urllib.request
+              base = 'http://{{ .Release.Name }}'
+              with urllib.request.urlopen(base + '/readyz', timeout=10) as response:
+                  assert json.load(response)['status'] == 'ready'
+              request = urllib.request.Request(base + '/v1/search', data=json.dumps({'query': 'как вернуть предыдущую модель после плохого релиза', 'limit': 3}).encode(), headers={'Content-Type': 'application/json'})
+              with urllib.request.urlopen(request, timeout=10) as response:
+                  assert json.load(response)['results'][0]['id'] == 'doc-rollback'
+              print('readiness and semantic search passed')
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 100m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
