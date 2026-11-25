@@ -19,4 +19,4 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 Основные маршруты: `POST /v1/search`, `GET /v1/documents/{id}/recommendations`, `/livez`, `/readyz`, `/meta`, `/metrics` и `/docs`.
 
-[Pipeline выпуска](https://github.com/Konstant1nov1ch/mlops-homework-333714/actions/runs/45609995917) · [Отчёт](../reports/ЛР2.md)
+[Pipeline выпуска](https://github.com/Konstant1nov1ch/mlops-homework-333714/actions/runs/45614699002) · [Отчёт](../reports/ЛР2.md)
